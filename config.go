@@ -39,6 +39,16 @@ var configKeys = []configItem{
 		Secret:   true,
 		Validate: glKeyValidate,
 	},
+	{
+		Name:   "bbUser",
+		Prompt: "Bitbucket Username",
+	},
+	{
+		Name:     "bbKey",
+		Prompt:   "Bitbucket API Token",
+		Secret:   true,
+		Validate: bbKeyValidate,
+	},
 }
 
 type configItem struct {
@@ -112,6 +122,13 @@ func ghKeyValidate(key string) error {
 func glKeyValidate(key string) error {
 	if len(key) != 20 {
 		return errors.New("GitLab Tokens must be 20 characters")
+	}
+	return nil
+}
+
+func bbKeyValidate(key string) error {
+	if len(key) != 20 {
+		return errors.New("Bitbucket Tokens must be 20 characters")
 	}
 	return nil
 }

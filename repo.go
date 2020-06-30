@@ -70,11 +70,11 @@ func createRemoteRepos(repos map[string]string) error {
 		//if err != nil {
 		//	return err
 		//}
-		err := createGitLabRepo(name)
-		if err != nil {
-			return err
-		}
-		err = createBitBucketRepo(name)
+		//err := createGitLabRepo(name)
+		//if err != nil {
+		//	return err
+		//}
+		err := createBitBucketRepo(name)
 		if err != nil {
 			return err
 		}
