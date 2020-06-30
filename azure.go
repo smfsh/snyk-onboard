@@ -1,5 +1,5 @@
 package main
 
-func createAzureRepo() {
-
+func createAzureRepo(name string) error {
+	return nil
 }

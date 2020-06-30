@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -67,13 +66,22 @@ func cloneRepos(repos map[string]string) error {
 
 func createRemoteRepos(repos map[string]string) error {
 	for name := range repos {
-		err := createGitHubRepo(name)
+		//err := createGitHubRepo(name)
+		//if err != nil {
+		//	return err
+		//}
+		err := createGitLabRepo(name)
 		if err != nil {
 			return err
 		}
-		createGitLabRepo()
-		createBitBucketRepo()
-		createAzureRepo()
+		err = createBitBucketRepo(name)
+		if err != nil {
+			return err
+		}
+		err = createAzureRepo(name)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -82,26 +90,20 @@ func pushUpstream(name string, remote string, giturl string) error {
 	pathBase := path.Clean(viper.Get("path").(string))
 	in := path.Join(pathBase, name)
 
-	switch remote {
-	case "github":
-		fmt.Printf("Pushing latest %s to remote \"%s\"\n", name, remote)
-		r, err := git.PlainOpen(in)
-		if err != nil {
-			return err
-		}
-
-		r.CreateRemote(&config.RemoteConfig{
-			Name: remote,
-			URLs: []string{giturl},
-		})
-
-		err = r.Push(&git.PushOptions{
-			RemoteName: remote,
-		})
-
-	default:
-		return errors.New("pushUpstream: unknown upstream SCM")
+	fmt.Printf("Pushing latest %s to remote \"%s\"\n", name, remote)
+	r, err := git.PlainOpen(in)
+	if err != nil {
+		return err
 	}
+
+	r.CreateRemote(&config.RemoteConfig{
+		Name: remote,
+		URLs: []string{giturl},
+	})
+
+	err = r.Push(&git.PushOptions{
+		RemoteName: remote,
+	})
 
 	return nil
 }

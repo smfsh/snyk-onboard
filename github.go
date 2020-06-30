@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v32/github"
 	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
 )
@@ -36,7 +36,7 @@ func createGitHubRepo(name string) error {
 		Private:     &private,
 		Description: &description,
 	})
-	// TODO: add proper error message checking for existence
+	// TODO: mirror GitLab logic for the same interaction steps
 	if err != nil && resp.StatusCode != 422 {
 		return err
 	} else if resp.StatusCode == 422 {

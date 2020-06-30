@@ -1,5 +1,5 @@
 package main
 
-func createBitBucketRepo() {
-
+func createBitBucketRepo(name string) error {
+	return nil
 }

@@ -29,6 +29,16 @@ var configKeys = []configItem{
 		Secret:   true,
 		Validate: ghKeyValidate,
 	},
+	{
+		Name:   "glUser",
+		Prompt: "GitLab Username",
+	},
+	{
+		Name:     "glKey",
+		Prompt:   "GitLab API Token",
+		Secret:   true,
+		Validate: glKeyValidate,
+	},
 }
 
 type configItem struct {
@@ -95,6 +105,13 @@ func checkForConfigValues() error {
 func ghKeyValidate(key string) error {
 	if len(key) != 40 {
 		return errors.New("GitHub Tokens must be 40 characters")
+	}
+	return nil
+}
+
+func glKeyValidate(key string) error {
+	if len(key) != 20 {
+		return errors.New("GitLab Tokens must be 20 characters")
 	}
 	return nil
 }
