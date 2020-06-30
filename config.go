@@ -11,22 +11,32 @@ import (
 
 var configKeys = []configItem{
 	{
-		name:   "ghUser",
-		prompt: "GitHub Username",
+		Name:    "path",
+		Prompt:  "Local path to store repos",
+		Default: "repos",
 	},
 	{
-		name:     "ghKey",
-		prompt:   "GitHub API Token",
-		secret:   true,
-		validate: ghKeyValidate,
+		Name:   "ghUser",
+		Prompt: "GitHub Username",
+	},
+	{
+		Name:   "ghOrg",
+		Prompt: "GitHub Organization (optional)",
+	},
+	{
+		Name:     "ghKey",
+		Prompt:   "GitHub API Token",
+		Secret:   true,
+		Validate: ghKeyValidate,
 	},
 }
 
 type configItem struct {
-	name     string
-	prompt   string
-	secret   bool
-	validate func(string) error
+	Name     string
+	Prompt   string
+	Default  string
+	Secret   bool
+	Validate func(string) error
 }
 
 func init() {
@@ -52,24 +62,27 @@ func init() {
 
 func checkForConfigValues() error {
 	for _, k := range configKeys {
-		if v := viper.Get(k.name); v != nil {
-			fmt.Printf("Key \"%v\" already configured, skipping\n", k.name)
+		if v := viper.Get(k.Name); v != nil {
+			fmt.Printf("Key \"%v\" already configured, skipping\n", k.Name)
 		} else {
 			prompt := promptui.Prompt{
-				Label: k.prompt,
+				Label: k.Prompt,
 			}
-			if k.secret == true {
+			if k.Default != "" {
+				prompt.Default = k.Default
+			}
+			if k.Secret == true {
 				prompt.Mask = '*'
 			}
-			if k.validate != nil {
-				prompt.Validate = k.validate
+			if k.Validate != nil {
+				prompt.Validate = k.Validate
 			}
 			result, err := prompt.Run()
 			if err != nil {
 				return err
 			}
 
-			viper.Set(k.name, result)
+			viper.Set(k.Name, result)
 			err = viper.WriteConfig()
 			if err != nil {
 				return err

@@ -3,10 +3,15 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path"
+
+	"github.com/go-git/go-git/v5/config"
+
+	"github.com/spf13/viper"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/google/go-github/v32/github"
@@ -45,16 +50,19 @@ func parseRepoList(list string) (map[string]string, error) {
 }
 
 func cloneRepos(repos map[string]string) error {
+	pathBase := path.Clean(viper.Get("path").(string))
 	for name, url := range repos {
 		fmt.Printf("Attempting to clone repository: %s\n", name)
-		_, err := git.PlainClone("repos/"+name, false, &git.CloneOptions{
-			URL:      url,
-			Progress: os.Stdout,
+		out := path.Join(pathBase, name)
+		_, err := git.PlainClone(out, false, &git.CloneOptions{
+			URL:        url,
+			Progress:   os.Stdout,
+			RemoteName: "snyk",
 		})
 		if err != nil && err != git.ErrRepositoryAlreadyExists {
 			return err
 		} else if err == git.ErrRepositoryAlreadyExists {
-			fmt.Printf("%s already cloned, attempting to pull from origin\n", name)
+			fmt.Printf("%s already cloned, attempting to pull from upstream\n", name)
 			r, err := git.PlainOpen("repos/" + name)
 			if err != nil {
 				return err
@@ -67,7 +75,7 @@ func cloneRepos(repos map[string]string) error {
 			}
 
 			// Pull the latest changes from the origin remote and merge into the current branch
-			err = w.Pull(&git.PullOptions{RemoteName: "origin"})
+			err = w.Pull(&git.PullOptions{RemoteName: "snyk"})
 			if err != nil && err != git.NoErrAlreadyUpToDate {
 				return err
 			} else if err == git.NoErrAlreadyUpToDate {
@@ -78,8 +86,31 @@ func cloneRepos(repos map[string]string) error {
 	return nil
 }
 
-func pushUpstream(name string, origin string) error {
-	// TODO: add authenticated push code
+func pushUpstream(name string, remote string, giturl string) error {
+	pathBase := path.Clean(viper.Get("path").(string))
+	in := path.Join(pathBase, name)
+
+	switch remote {
+	case "github":
+		fmt.Printf("Pushing latest %s to remote \"%s\"\n", name, remote)
+		r, err := git.PlainOpen(in)
+		if err != nil {
+			return err
+		}
+
+		r.CreateRemote(&config.RemoteConfig{
+			Name: remote,
+			URLs: []string{giturl},
+		})
+
+		err = r.Push(&git.PushOptions{
+			RemoteName: remote,
+		})
+
+	default:
+		return errors.New("pushUpstream: unknown upstream SCM")
+	}
+
 	return nil
 }
 
@@ -97,22 +128,28 @@ func createRemoteRepos(repos map[string]string) error {
 }
 
 func createGitHubRepo(name string) error {
-	fmt.Printf("Attempting to create %s in GitHub\n", name)
 
-	gh_org := ""
-	gh_token := ""
+	ghUser := viper.Get("ghUser").(string)
+	ghOrg := viper.Get("ghOrg").(string)
+	ghToken := viper.Get("ghKey").(string)
 	private := false
 	description := ""
 
+	if ghOrg == "" {
+		fmt.Printf("Attempting to create %s in %s's GitHub\n", name, ghUser)
+	} else {
+		fmt.Printf("Attempting to create %s in the %s GitHub Org\n", name, ghOrg)
+	}
+
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: gh_token},
+		&oauth2.Token{AccessToken: ghToken},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 
 	client := github.NewClient(tc)
 
-	repo, resp, err := client.Repositories.Create(ctx, gh_org, &github.Repository{
+	repo, resp, err := client.Repositories.Create(ctx, ghOrg, &github.Repository{
 		Name:        &name,
 		Private:     &private,
 		Description: &description,
@@ -121,13 +158,26 @@ func createGitHubRepo(name string) error {
 	if err != nil && resp.StatusCode != 422 {
 		return err
 	} else if resp.StatusCode == 422 {
-		fmt.Printf("%s already exists in this GitHub account or org\n", name)
-		err = pushUpstream(name, "github")
-		if err != nil {
-			return err
+		if ghOrg == "" {
+			fmt.Printf("%s already exists in this GitHub account\n", name)
+			repo, resp, err = client.Repositories.Get(ctx, ghUser, name)
+			if err != nil {
+				return err
+			}
+		} else {
+			fmt.Printf("%s already exists in this GitHub Org\n", name)
+			repo, resp, err = client.Repositories.Get(ctx, ghOrg, name)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		fmt.Printf("%s created successfully at %s\n", repo.GetName(), repo.GetURL())
+	}
+
+	err = pushUpstream(name, "github", *repo.CloneURL)
+	if err != nil {
+		return err
 	}
 
 	return nil
