@@ -6,6 +6,11 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
+
+	"github.com/microsoft/azure-devops-go-api/azuredevops/operations"
+
+	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 
@@ -17,6 +22,7 @@ import (
 func createAzureRepo(name string) error {
 	azOrg := viper.Get("azOrg").(string)
 	azToken := viper.Get("azKey").(string)
+	azProj := "Snyk" // TODO: toggle option for custom name
 
 	u, err := url.Parse("https://dev.azure.com")
 	if err != nil {
@@ -28,6 +34,72 @@ func createAzureRepo(name string) error {
 	connection := azuredevops.NewPatConnection(azURL, azToken)
 	ctx := context.Background()
 
+	coreClient, err := core.NewClient(ctx, connection)
+	if err != nil {
+		return err
+	}
+
+	project, err := coreClient.GetProject(ctx, core.GetProjectArgs{
+		ProjectId: &azProj,
+	})
+	if err != nil && !strings.Contains(err.Error(), "TF200016") {
+		return err
+	}
+
+	if project == nil {
+		fmt.Printf("Unable to find project %s in Azure DevOps Org %s\n", azOrg, azProj)
+		fmt.Printf("Creating project %s in Azure DevOps Org %s\n", azOrg, azProj)
+
+		description := "A project for Snyk Repositories"
+		visibility := core.ProjectVisibility(core.ProjectVisibilityValues.Public)
+		capabilities := map[string]map[string]string{
+			"versioncontrol": {
+				"sourceControlType": "Git",
+			},
+			"processTemplate": {
+				"templateTypeId": "b8a3a935-7e91-48b8-a94c-606d37c3e9f2",
+			},
+		}
+
+		// TODO: add attributes to project to get Azure to create it
+		qcp, err := coreClient.QueueCreateProject(ctx, core.QueueCreateProjectArgs{
+			ProjectToCreate: &core.TeamProject{
+				Name:         &azProj,
+				Description:  &description,
+				Visibility:   &visibility,
+				Capabilities: &capabilities,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		opClient := operations.NewClient(ctx, connection)
+
+		for {
+			op, err := opClient.GetOperation(ctx, operations.GetOperationArgs{
+				OperationId: qcp.Id,
+				PluginId:    qcp.PluginId,
+			})
+			if err != nil {
+				return err
+			}
+			if *op.Status == operations.OperationStatusValues.Succeeded {
+				fmt.Printf("Project %s successfully created\n", azProj)
+				project, err = coreClient.GetProject(ctx, core.GetProjectArgs{
+					ProjectId: &azProj,
+				})
+				if err != nil && !strings.Contains(err.Error(), "TF200016") {
+					return err
+				}
+				break
+			} else {
+				fmt.Printf("Creating project...\n")
+				time.Sleep(5 * time.Second)
+			}
+		}
+		fmt.Printf("Created project %s in Azure DevOps Org %s\n", *project.Name, azOrg)
+	}
+
 	client, err := git.NewClient(ctx, connection)
 	if err != nil {
 		return err
@@ -35,7 +107,7 @@ func createAzureRepo(name string) error {
 
 	repo, err := client.GetRepository(ctx, git.GetRepositoryArgs{
 		RepositoryId: &name,
-		Project:      &azOrg,
+		Project:      &azProj,
 	})
 	if err != nil && !strings.Contains(err.Error(), "TF401019") {
 		return err
@@ -45,7 +117,7 @@ func createAzureRepo(name string) error {
 			GitRepositoryToCreate: &git.GitRepositoryCreateOptions{
 				Name: &name,
 			},
-			Project: &azOrg,
+			Project: &azProj,
 		})
 		if err != nil {
 			return err
