@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/spf13/viper"
@@ -66,19 +68,19 @@ func cloneRepos(repos map[string]string) error {
 
 func createRemoteRepos(repos map[string]string) error {
 	for name := range repos {
-		//err := createGitHubRepo(name)
-		//if err != nil {
-		//	return err
-		//}
-		//err := createGitLabRepo(name)
-		//if err != nil {
-		//	return err
-		//}
-		//err := createBitBucketRepo(name)
-		//if err != nil {
-		//	return err
-		//}
-		err := createAzureRepo(name)
+		err := createGitHubRepo(name)
+		if err != nil {
+			return err
+		}
+		err = createGitLabRepo(name)
+		if err != nil {
+			return err
+		}
+		err = createBitBucketRepo(name)
+		if err != nil {
+			return err
+		}
+		err = createAzureRepo(name)
 		if err != nil {
 			return err
 		}
@@ -86,7 +88,7 @@ func createRemoteRepos(repos map[string]string) error {
 	return nil
 }
 
-func pushUpstream(name string, remote string, giturl string) error {
+func pushUpstream(name string, remote string, giturl string, u string, p string) error {
 	pathBase := path.Clean(viper.Get("path").(string))
 	in := path.Join(pathBase, name)
 
@@ -103,10 +105,18 @@ func pushUpstream(name string, remote string, giturl string) error {
 
 	err = r.Push(&git.PushOptions{
 		RemoteName: remote,
+		Progress:   os.Stdout,
+		Auth: &http.BasicAuth{
+			Username: u,
+			Password: p,
+		},
+		Force: true,
 	})
-	if err != nil {
+	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return err
 	}
+
+	fmt.Printf("%s on remote \"%s\" up to date\n", name, remote)
 
 	return nil
 }

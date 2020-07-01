@@ -55,7 +55,7 @@ func createAzureRepo(name string) error {
 		fmt.Printf("%s already exists in this Azure DevOps account\n", name)
 	}
 
-	err = pushUpstream(name, "azure", *repo.RemoteUrl)
+	err = pushUpstream(name, "azure", *repo.RemoteUrl, azOrg, azToken)
 	if err != nil {
 
 	}

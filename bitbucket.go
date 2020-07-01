@@ -51,7 +51,7 @@ func createBitBucketRepo(name string) error {
 		return errors.New("unable to find http git link from Bitbucket repository")
 	}
 
-	err = pushUpstream(name, "bitbucket", httpURL)
+	err = pushUpstream(name, "bitbucket", httpURL, bbUser, bbToken)
 	if err != nil {
 		return err
 	}

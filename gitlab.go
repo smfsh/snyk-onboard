@@ -39,7 +39,7 @@ func createGitLabRepo(name string) error {
 		fmt.Printf("%s created successfully at %s\n", project.Name, project.WebURL)
 	}
 
-	err = pushUpstream(name, "gitlab", project.HTTPURLToRepo)
+	err = pushUpstream(name, "gitlab", project.HTTPURLToRepo, glUser, glToken)
 	if err != nil {
 		return err
 	}

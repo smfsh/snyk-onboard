@@ -57,7 +57,7 @@ func createGitHubRepo(name string) error {
 		fmt.Printf("%s created successfully at %s\n", repo.GetName(), repo.GetURL())
 	}
 
-	err = pushUpstream(name, "github", *repo.CloneURL)
+	err = pushUpstream(name, "github", *repo.CloneURL, ghUser, ghToken)
 	if err != nil {
 		return err
 	}
