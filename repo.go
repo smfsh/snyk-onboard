@@ -74,11 +74,11 @@ func createRemoteRepos(repos map[string]string) error {
 		//if err != nil {
 		//	return err
 		//}
-		err := createBitBucketRepo(name)
-		if err != nil {
-			return err
-		}
-		err = createAzureRepo(name)
+		//err := createBitBucketRepo(name)
+		//if err != nil {
+		//	return err
+		//}
+		err := createAzureRepo(name)
 		if err != nil {
 			return err
 		}
@@ -104,6 +104,9 @@ func pushUpstream(name string, remote string, giturl string) error {
 	err = r.Push(&git.PushOptions{
 		RemoteName: remote,
 	})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -49,6 +49,16 @@ var configKeys = []configItem{
 		Secret:   true,
 		Validate: bbKeyValidate,
 	},
+	{
+		Name:   "azOrg",
+		Prompt: "Azure DevOps Organization",
+	},
+	{
+		Name:     "azKey",
+		Prompt:   "Azure DevOps API Token",
+		Secret:   true,
+		Validate: azKeyValidate,
+	},
 }
 
 type configItem struct {
@@ -129,6 +139,13 @@ func glKeyValidate(key string) error {
 func bbKeyValidate(key string) error {
 	if len(key) != 20 {
 		return errors.New("Bitbucket Tokens must be 20 characters")
+	}
+	return nil
+}
+
+func azKeyValidate(key string) error {
+	if len(key) != 52 {
+		return errors.New("Azure DevOps Tokens must be 52 characters")
 	}
 	return nil
 }
