@@ -87,8 +87,11 @@ func init() {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			out := filepath.Join(repos, ".config.yaml")
-			fmt.Println(out)
 			err = viper.WriteConfigAs(out)
+			if err != nil {
+				log.Panic(err)
+			}
+			err = os.Chmod(out, 0700)
 			if err != nil {
 				log.Panic(err)
 			}
