@@ -6,7 +6,22 @@ used to keep your local goof environments, and their respective upstream reposit
 repos maintained by Snyk. This project stops short of actually onboarding each application into Snyk itself which
 must still be performed in the Snyk application.
 
-#### Supported Repositories
+For each repository listed in `repolist.txt`, this application does the following:
+
+1) Clone the repository to a local directory
+2) Add git remotes for each of the supported Git services
+3) Create a remote project repository in each of the supported Git services
+4) Push the local repository to each of the supported Git services
+
+For Azure DevOps, the application also creates a Project to group all repos in a given Organization called `Snyk`.
+
+If the application has already been run and/or some or all of the repositories in `repolist.txt` already exist, the
+application will perform the following steps for these items:
+
+1) Pull down and merge any upstream changes
+2) Push new changes to each of the supported Git services
+
+#### Supported Git Services
 * GitHub
 * GitLab
 * Bitbucket
