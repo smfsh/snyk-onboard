@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
@@ -33,7 +34,7 @@ func cloneRepos(repos map[string]string) error {
 	pathBase := path.Clean(viper.Get("path").(string))
 	for name, url := range repos {
 		fmt.Printf("Attempting to clone repository: %s\n", name)
-		out := path.Join(pathBase, name)
+		out := filepath.Join(pathBase, name)
 		_, err := git.PlainClone(out, false, &git.CloneOptions{
 			URL:        url,
 			Progress:   os.Stdout,
@@ -43,7 +44,7 @@ func cloneRepos(repos map[string]string) error {
 			return err
 		} else if err == git.ErrRepositoryAlreadyExists {
 			fmt.Printf("%s already cloned, attempting to pull from upstream\n", name)
-			r, err := git.PlainOpen("repos/" + name)
+			r, err := git.PlainOpen(out)
 			if err != nil {
 				return err
 			}

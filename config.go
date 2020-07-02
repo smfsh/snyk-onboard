@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/viper"
@@ -12,13 +13,9 @@ import (
 
 var configKeys = []configItem{
 	{
-		Name:    "path",
-		Prompt:  "Local path to store repos",
-		Default: "repos",
-	},
-	{
-		Name:   "ghUser",
-		Prompt: "GitHub Username",
+		Name:     "ghUser",
+		Prompt:   "GitHub Username",
+		Validate: nonEmptyValidate,
 	},
 	{
 		Name:   "ghOrg",
@@ -31,8 +28,9 @@ var configKeys = []configItem{
 		Validate: ghKeyValidate,
 	},
 	{
-		Name:   "glUser",
-		Prompt: "GitLab Username",
+		Name:     "glUser",
+		Prompt:   "GitLab Username",
+		Validate: nonEmptyValidate,
 	},
 	{
 		Name:     "glKey",
@@ -41,8 +39,9 @@ var configKeys = []configItem{
 		Validate: glKeyValidate,
 	},
 	{
-		Name:   "bbUser",
-		Prompt: "Bitbucket Username",
+		Name:     "bbUser",
+		Prompt:   "Bitbucket Username",
+		Validate: nonEmptyValidate,
 	},
 	{
 		Name:     "bbKey",
@@ -51,8 +50,9 @@ var configKeys = []configItem{
 		Validate: bbKeyValidate,
 	},
 	{
-		Name:   "azOrg",
-		Prompt: "Azure DevOps Organization",
+		Name:     "azOrg",
+		Prompt:   "Azure DevOps Organization",
+		Validate: nonEmptyValidate,
 	},
 	{
 		Name:     "azKey",
@@ -76,12 +76,19 @@ func init() {
 	inDocker = checkForDocker()
 
 	fmt.Println("Config stuff...")
-	viper.SetConfigName("config")
+	viper.SetConfigName(".config.yaml")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
+
+	var repos = "repos"
+	if inDocker {
+		repos = "/repos"
+	}
+	viper.AddConfigPath(repos)
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			err = viper.WriteConfigAs("config.yaml")
+			out := filepath.Join(repos, ".config.yaml")
+			fmt.Println(out)
+			err = viper.WriteConfigAs(out)
 			if err != nil {
 				log.Panic(err)
 			}
@@ -93,10 +100,7 @@ func init() {
 	if err != nil {
 		log.Panic(err)
 	}
-
-	if inDocker {
-		viper.Set("path", "/repos")
-	}
+	viper.Set("path", repos)
 }
 
 func checkForDocker() bool {
@@ -108,10 +112,6 @@ func checkForDocker() bool {
 
 func checkForConfigValues() error {
 	for _, k := range configKeys {
-		if k.Name == "path" && inDocker {
-			continue
-		}
-
 		if v := viper.Get(k.Name); v != nil {
 			fmt.Printf("Key \"%v\" already configured, skipping\n", k.Name)
 		} else {
@@ -138,6 +138,13 @@ func checkForConfigValues() error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func nonEmptyValidate(key string) error {
+	if key == "" {
+		return errors.New("Cannot be blank")
 	}
 	return nil
 }
