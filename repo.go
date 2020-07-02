@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path"
-
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/spf13/viper"
 )
 
@@ -54,12 +54,22 @@ func cloneRepos(repos map[string]string) error {
 				return err
 			}
 
+			err = r.Fetch(&git.FetchOptions{
+				RemoteName: "snyk",
+				RefSpecs: []config.RefSpec{
+					"refs/*:refs/*",
+				},
+				Progress: os.Stdout,
+			})
+
 			// Pull the latest changes from the origin remote and merge into the current branch
 			err = w.Pull(&git.PullOptions{RemoteName: "snyk"})
-			if err != nil && err != git.NoErrAlreadyUpToDate {
+			if err != nil && err != git.NoErrAlreadyUpToDate && err != git.ErrNonFastForwardUpdate {
 				return err
 			} else if err == git.NoErrAlreadyUpToDate {
 				fmt.Printf("%s already up to date, nothing to pull\n", name)
+			} else if err == git.ErrNonFastForwardUpdate {
+				fmt.Printf("%s has been modified locally, cannot merge from upstream", name)
 			}
 		}
 	}
@@ -88,7 +98,7 @@ func createRemoteRepos(repos map[string]string) error {
 	return nil
 }
 
-func pushUpstream(name string, remote string, giturl string, u string, p string) error {
+func pushUpstream(name string, remote string, giturl string, u interface{}, p interface{}) error {
 	pathBase := path.Clean(viper.Get("path").(string))
 	in := path.Join(pathBase, name)
 
@@ -98,20 +108,40 @@ func pushUpstream(name string, remote string, giturl string, u string, p string)
 		return err
 	}
 
-	r.CreateRemote(&config.RemoteConfig{
+	_, err = r.CreateRemote(&config.RemoteConfig{
 		Name: remote,
 		URLs: []string{giturl},
 	})
+	if err != nil && !strings.Contains(err.Error(), "remote already exists") {
+		return err
+	} else if err != nil && strings.Contains(err.Error(), "remote already exists") {
+		err = r.DeleteRemote(remote)
+		if err != nil {
+			return err
+		}
+		_, err = r.CreateRemote(&config.RemoteConfig{
+			Name: remote,
+			URLs: []string{giturl},
+		})
+		if err != nil {
+			return err
+		}
+	}
 
-	err = r.Push(&git.PushOptions{
+	pushOptions := git.PushOptions{
 		RemoteName: remote,
 		Progress:   os.Stdout,
-		Auth: &http.BasicAuth{
-			Username: u,
-			Password: p,
-		},
-		Force: true,
-	})
+		Force:      true,
+	}
+
+	if u != nil && p != nil {
+		pushOptions.Auth = &http.BasicAuth{
+			Username: u.(string),
+			Password: p.(string),
+		}
+	}
+
+	err = r.Push(&pushOptions)
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return err
 	}
