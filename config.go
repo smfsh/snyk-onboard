@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/viper"
@@ -69,7 +70,11 @@ type configItem struct {
 	Validate func(string) error
 }
 
+var inDocker bool
+
 func init() {
+	inDocker = checkForDocker()
+
 	fmt.Println("Config stuff...")
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
@@ -88,10 +93,25 @@ func init() {
 	if err != nil {
 		log.Panic(err)
 	}
+
+	if inDocker {
+		viper.Set("path", "/repos")
+	}
+}
+
+func checkForDocker() bool {
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+	return false
 }
 
 func checkForConfigValues() error {
 	for _, k := range configKeys {
+		if k.Name == "path" && inDocker {
+			continue
+		}
+
 		if v := viper.Get(k.Name); v != nil {
 			fmt.Printf("Key \"%v\" already configured, skipping\n", k.Name)
 		} else {
