@@ -1,3 +1,5 @@
+// File contains functions used to create repositories on Azure DevOps.
+
 package main
 
 import (
